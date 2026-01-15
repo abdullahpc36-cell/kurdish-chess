@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="ku" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>شەترەنجی کوردەواری PRO</title>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.4.7/peerjs.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        :root {
+            --bg-body: #312e2b;
+            --bg-dark: #262421;
+            --board-light: #eeeed2;
+            --board-dark: #769656;
+            --accent: #81b64c;
+            --premove-sq: rgba(244, 42, 50, 0.7);
+            --last-move: rgba(255, 255, 51, 0.5);
+        }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; margin: 0; padding: 0; }
+        
+        body {
+            background-color: var(--bg-body); color: white;
+            font-family: sans-serif; display: flex; justify-content: center; align-items: flex-start;
+            min-height: 100vh; width: 100vw; overflow-x: hidden; padding-top: 20px;
+        }
+
+        .app-container { 
+            width: 100%; 
+            max-width: 500px; /* پانی سنووردار بۆ ئەوەی لە لاپتۆپ پان نەبێتەوە */
+            display: flex; 
+            flex-direction: column; 
+            align-items: center;
+            padding: 10px;
+        }
+
+        #welcome-screen { 
+            text-align: center; background: var(--bg-dark); padding: 30px; 
+            border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            width: 100%;
+        }
+
+        .main-input { width: 100%; padding: 15px; margin: 10px 0; border-radius: 8px; border: 1px solid #444; background: #1a1917; color: white; text-align: center; font-size: 1.1rem; }
+
+        .time-selector { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 15px; }
+        .t-btn { padding: 12px; border: none; border-radius: 8px; background: #3d3b39; color: white; cursor: pointer; font-weight: bold; }
+        .t-btn.active { background: var(--accent); }
+
+        .btn { width: 100%; padding: 16px; margin: 5px 0; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 1rem; }
+        .btn-primary { background: var(--accent); color: white; }
+
+        /* Game UI */
+        #game-screen { display: none; flex-direction: column; width: 100%; align-items: center; }
+
+        .player-info { 
+            width: 100%; display: flex; justify-content: space-between; align-items: center; 
+            padding: 10px 5px; margin: 5px 0; 
+        }
+        .clock { background: #1a1917; color: #d1d1d1; padding: 8px 12px; border-radius: 4px; font-family: monospace; font-size: 1.6rem; font-weight: bold; min-width: 90px; text-align: center; }
+        .clock.active { background: #fff; color: #000; }
+
+        /* گرنگترین بەش: ڕێگری لە پانبوونەوە */
+        .board-wrapper {
+            width: 100%;
+            max-width: 480px; /* گەورەترین قەبارە */
+            position: relative;
+        }
+
+        .board-container { 
+            width: 100%;
+            aspect-ratio: 1 / 1; /* گەرەنتی چوارگۆشەبوون */
+            display: grid; 
+            grid-template-columns: repeat(8, 1fr); 
+            grid-template-rows: repeat(8, 1fr);
+            border-radius: 4px; 
+            overflow: hidden; 
+            box-shadow: 0 5px 25px rgba(0,0,0,0.6); 
+            touch-action: none;
+        }
+
+        .square { position: relative; display: flex; justify-content: center; align-items: center; width: 100%; height: 100%; }
+        .light { background-color: var(--board-light); }
+        .dark { background-color: var(--board-dark); }
+        .sq-last-move { background-color: var(--last-move) !important; }
+        .sq-premove { background-color: var(--premove-sq) !important; }
+        .piece { width: 100%; height: 100%; z-index: 5; pointer-events: none; }
+        .move-dot { width: 30%; height: 30%; background: rgba(0,0,0,0.1); border-radius: 50%; position: absolute; }
+        
+        .flipped { transform: rotate(180deg); }
+        .flipped .piece { transform: rotate(180deg); }
+
+        .game-controls { width: 100%; display: flex; justify-content: space-between; align-items: center; margin-top: 15px; padding: 0 10px; }
+        .status-badge { background: var(--bg-dark); padding: 8px 15px; border-radius: 20px; color: var(--accent); font-weight: bold; font-size: 0.9rem; }
+        .icon-btn { background: #3d3b39; color: white; border: none; padding: 12px; border-radius: 8px; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <div id="welcome-screen">
+        <h1 style="margin-bottom: 5px; font-size: 1.8rem;">شەترەنجی کوردەواری</h1>
+        <div id="elo-tag" style="color: var(--accent); font-weight: bold; margin-bottom: 15px; font-size: 1.1rem;"></div>
+        
+        <input type="text" id="nick" class="main-input" placeholder="ناوەکەت بنووسە...">
+        
+        <div class="time-selector">
+            <button class="t-btn active" id="btn-1" onclick="updateTime(60, this)">1m</button>
+            <button class="t-btn" id="btn-3" onclick="updateTime(180, this)">3m</button>
+            <button class="t-btn" id="btn-10" onclick="updateTime(600, this)">10m</button>
+        </div>
+
+        <button class="btn btn-primary" onclick="launch('online')"><i class="fas fa-globe"></i> یاری ئۆنلاین</button>
+        <button class="btn btn-primary" style="background:#3081d0" onclick="inviteFriend()"><i class="fas fa-user-plus"></i> یاری لەگەڵ هاوڕێ</button>
+        <button class="btn btn-secondary" onclick="launch('bot')"><i class="fas fa-robot"></i> دژی بۆت</button>
+        
+        <div id="wait-msg" style="display:none; color:#f1c40f; margin-top:15px; font-weight:bold;">گەڕان بەدوای ڕکابەر...</div>
+    </div>
+
+    <div id="game-screen">
+        <div class="player-info">
+            <span id="name-top" style="font-weight: bold; color: #aaa;">ڕکابەر</span>
+            <div id="clock-top" class="clock">01:00</div>
+        </div>
+        
+        <div class="board-wrapper">
+            <div class="board-container" id="board"></div>
+        </div>
+        
+        <div class="player-info">
+            <span id="name-bottom" style="font-weight: bold; color: #fff;">تۆ</span>
+            <div id="clock-bottom" class="clock">01:00</div>
+        </div>
+
+        <div class="game-controls">
+            <div id="status-text" class="status-badge">نۆرەی سپییە</div>
+            <div style="display:flex; gap:10px;">
+                <button class="icon-btn" onclick="document.getElementById('board').classList.toggle('flipped')"><i class="fas fa-retweet"></i></button>
+                <button class="icon-btn" style="background:#632525" onclick="location.reload()"><i class="fas fa-sign-out-alt"></i></button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const chess = new Chess();
+    let peer, conn, mode = '', myCol = 'w', sel = null, premoves = [];
+    let tW = 60, tB = 60, timer = null;
+    let gamesCount = parseInt(localStorage.getItem('chess_games') || '0');
+    let myElo = parseInt(localStorage.getItem('chess_elo') || '400');
+
+    window.onload = () => {
+        document.getElementById('nick').value = localStorage.getItem('chess_nick') || "";
+        showElo();
+        const jId = new URLSearchParams(window.location.search).get('join');
+        if (jId) join(jId);
+    };
+
+    function showElo() {
+        const eloTag = document.getElementById('elo-tag');
+        eloTag.innerText = gamesCount < 3 ? `ئاست: دیاری نەکراوە (${3-gamesCount} یاری ماوە)` : `ئاست: ${myElo}`;
+    }
+
+    function updateTime(s, el) {
+        tW = tB = s;
+        document.querySelectorAll('.t-btn').forEach(b => b.classList.remove('active'));
+        el.classList.add('active');
+        const fmt = n => Math.floor(n/60).toString().padStart(2,'0')+":"+(n%60).toString().padStart(2,'0');
+        document.getElementById('clock-top').innerText = fmt(s);
+        document.getElementById('clock-bottom').innerText = fmt(s);
+    }
+
+    function launch(m) {
+        const n = document.getElementById('nick').value;
+        if (!n) return alert("ناو بنووسە");
+        localStorage.setItem('chess_nick', n);
+        mode = m;
+        if(m==='online') {
+            document.getElementById('wait-msg').style.display='block';
+            peer = new Peer();
+            peer.on('open', () => {
+                let c = peer.connect("KURD_CHESS_LOBBY_FINAL");
+                c.on('open', () => { conn=c; myCol='b'; init(); conn.on('data', onMove); });
+                peer.on('error', () => {
+                    peer.destroy(); peer = new Peer("KURD_CHESS_LOBBY_FINAL");
+                    peer.on('connection', x => { conn=x; myCol='w'; init(); conn.on('data', onMove); });
+                });
+            });
+        } else init();
+    }
+
+    function init() {
+        document.getElementById('welcome-screen').style.display='none';
+        document.getElementById('game-screen').style.display='flex';
+        document.getElementById('name-bottom').innerText = localStorage.getItem('chess_nick');
+        if(myCol==='b') document.getElementById('board').classList.add('flipped');
+        draw();
+        timer = setInterval(count, 1000);
+    }
+
+    function count() {
+        if(chess.game_over()) return;
+        chess.turn()==='w' ? tW-- : tB--;
+        
+        if (tW <= 0 || tB <= 0) finish(tW <= 0 ? 'w' : 'b', 'timeout');
+
+        const fmt = n => Math.floor(Math.max(0, n)/60).toString().padStart(2,'0')+":"+(Math.max(0, n)%60).toString().padStart(2,'0');
+        const cT = document.getElementById('clock-top'), cB = document.getElementById('clock-bottom');
+        if(myCol==='w'){ cB.innerText=fmt(tW); cT.innerText=fmt(tB); cB.classList.toggle('active', chess.turn()==='w'); cT.classList.toggle('active', chess.turn()==='b'); }
+        else { cB.innerText=fmt(tB); cT.innerText=fmt(tW); cB.classList.toggle('active', chess.turn()==='b'); cT.classList.toggle('active', chess.turn()==='w'); }
+    }
+
+    function finish(loser, type) {
+        clearInterval(timer);
+        let win = (myCol === 'w' && loser === 'b') || (myCol === 'b' && loser === 'w');
+        alert(win ? "پیرۆزە! بردتەوە 🎉" : "بەداخەوە! دۆڕایت 💀");
+        gamesCount++;
+        localStorage.setItem('chess_games', gamesCount);
+        myElo += win ? 20 : -15;
+        localStorage.setItem('chess_elo', myElo);
+        location.reload();
+    }
+
+    function onMove(d) { chess.move(d); checkPre(); draw(); }
+
+    function clickSq(sq) {
+        if(chess.game_over()) return;
+        if(chess.turn()===myCol) {
+            if(!sel) { if(chess.get(sq)?.color===chess.turn()) sel=sq; }
+            else {
+                const m = chess.move({from:sel, to:sq, promotion:'q'});
+                if(m) { if(conn) conn.send(m); if(mode==='bot') setTimeout(bot, 600); premoves=[]; }
+                sel = (chess.get(sq)?.color===chess.turn()) ? sq : null;
+            }
+        } else {
+            if(!sel) { if(chess.get(sq)?.color===myCol) sel=sq; }
+            else { premoves.push({f:sel, t:sq}); sel=null; }
+        }
+        draw();
+    }
+
+    async function bot() {
+        const r = await fetch(`https://stockfish.online/api/s/v2.php?fen=${chess.fen()}&depth=5`);
+        const d = await r.json();
+        if(d.bestmove) { const m=d.bestmove.split(' ')[1]; chess.move({from:m.slice(0,2), to:m.slice(2,4)}); draw(); }
+    }
+
+    function draw() {
+        const b = document.getElementById('board'); b.innerHTML='';
+        const hist = chess.history({verbose:true}).pop();
+        const moves = sel ? chess.moves({square:sel, verbose:true}).map(m=>m.to) : [];
+        const pImg = (c, t) => `https://upload.wikimedia.org/wikipedia/commons/${{'wP':'4/45/Chess_plt45.svg','wR':'7/72/Chess_rlt45.svg','wN':'7/70/Chess_nlt45.svg','wB':'b/b1/Chess_blt45.svg','wQ':'1/15/Chess_qlt45.svg','wK':'4/42/Chess_klt45.svg','bP':'c/c7/Chess_pdt45.svg','bR':'f/ff/Chess_rdt45.svg','bN':'e/ef/Chess_ndt45.svg','bB':'9/98/Chess_bdt45.svg','bQ':'4/47/Chess_qdt45.svg','bK':'f/f0/Chess_kdt45.svg'}[c+t.toUpperCase()]}`;
+
+        for(let i=0; i<64; i++) {
+            let r=Math.floor(i/8), c=i%8, sq=String.fromCharCode(97+c)+(8-r);
+            let div = document.createElement('div');
+            div.className = `square ${(r+c)%2===0?'light':'dark'}`;
+            if(sq===sel || (hist&&(hist.from===sq||hist.to===sq))) div.classList.add('sq-last-move');
+            if(premoves.some(p=>p.f===sq||p.t===sq)) div.classList.add('sq-premove');
+            if(moves.includes(sq)) div.innerHTML='<div class="move-dot"></div>';
+            let p = chess.get(sq);
+            if(p) { let img=document.createElement('img'); img.src=pImg(p.color,p.type); img.className='piece'; div.appendChild(img); }
+            div.onclick = () => clickSq(sq);
+            b.appendChild(div);
+        }
+        if(chess.in_checkmate()) finish(chess.turn(), 'mate');
+        document.getElementById('status-text').innerText = chess.turn()==='w'?"نۆرەی سپی":"نۆرەی ڕەش";
+    }
+
+    function inviteFriend() {
+        const n = document.getElementById('nick').value;
+        if (!n) return alert("ناو بنووسە");
+        peer = new Peer();
+        peer.on('open', (id) => {
+            const link = window.location.origin + window.location.pathname + "?join=" + id;
+            prompt("لینک کۆپی بکە بۆ هاوڕێکەت:", link);
+            peer.on('connection', (c) => { conn = c; myCol = 'w'; conn.on('open', () => init()); conn.on('data', onMove); });
+        });
+    }
+
+    function join(id) {
+        peer = new Peer();
+        peer.on('open', () => {
+            conn = peer.connect(id);
+            conn.on('open', () => { myCol = 'b'; init(); });
+            conn.on('data', onMove);
+        });
+    }
+
+    function checkPre() {
+        if(premoves.length > 0 && chess.turn() === myCol) {
+            const p = premoves.shift();
+            const m = chess.move({from:p.f, to:p.t, promotion:'q'});
+            if(m && conn) conn.send(m);
+            draw();
+        }
+    }
+</script>
+</body>
+</html>
