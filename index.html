@@ -30,7 +30,7 @@
 
         .app-container { 
             width: 100%; 
-            max-width: 500px; /* پانی سنووردار بۆ ئەوەی لە لاپتۆپ پان نەبێتەوە */
+            max-width: 500px;
             display: flex; 
             flex-direction: column; 
             align-items: center;
@@ -44,6 +44,7 @@
         }
 
         .main-input { width: 100%; padding: 15px; margin: 10px 0; border-radius: 8px; border: 1px solid #444; background: #1a1917; color: white; text-align: center; font-size: 1.1rem; }
+        select.main-input { cursor: pointer; appearance: none; -webkit-appearance: none; }
 
         .time-selector { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 15px; }
         .t-btn { padding: 12px; border: none; border-radius: 8px; background: #3d3b39; color: white; cursor: pointer; font-weight: bold; }
@@ -51,33 +52,41 @@
 
         .btn { width: 100%; padding: 16px; margin: 5px 0; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 1rem; }
         .btn-primary { background: var(--accent); color: white; }
+        .btn-secondary { background: #4b4847; color: #ccc; }
+        .btn-friend { background: #3081d0; color: white; }
+
+        /* بەشی کۆد */
+        #friend-area { 
+            display: none; 
+            background: #1f1d1b; 
+            padding: 15px; 
+            border-radius: 8px; 
+            margin-top: 10px; 
+            border: 1px solid #444;
+        }
+        .code-display {
+            font-size: 2rem;
+            letter-spacing: 5px;
+            color: #f1c40f;
+            font-family: monospace;
+            margin: 10px 0;
+            background: rgba(0,0,0,0.3);
+            padding: 10px;
+            border-radius: 5px;
+        }
 
         /* Game UI */
         #game-screen { display: none; flex-direction: column; width: 100%; align-items: center; }
 
-        .player-info { 
-            width: 100%; display: flex; justify-content: space-between; align-items: center; 
-            padding: 10px 5px; margin: 5px 0; 
-        }
+        .player-info { width: 100%; display: flex; justify-content: space-between; align-items: center; padding: 10px 5px; margin: 5px 0; }
         .clock { background: #1a1917; color: #d1d1d1; padding: 8px 12px; border-radius: 4px; font-family: monospace; font-size: 1.6rem; font-weight: bold; min-width: 90px; text-align: center; }
         .clock.active { background: #fff; color: #000; }
 
-        /* گرنگترین بەش: ڕێگری لە پانبوونەوە */
-        .board-wrapper {
-            width: 100%;
-            max-width: 480px; /* گەورەترین قەبارە */
-            position: relative;
-        }
-
+        .board-wrapper { width: 100%; max-width: 480px; position: relative; }
         .board-container { 
-            width: 100%;
-            aspect-ratio: 1 / 1; /* گەرەنتی چوارگۆشەبوون */
-            display: grid; 
-            grid-template-columns: repeat(8, 1fr); 
-            grid-template-rows: repeat(8, 1fr);
-            border-radius: 4px; 
-            overflow: hidden; 
-            box-shadow: 0 5px 25px rgba(0,0,0,0.6); 
+            width: 100%; aspect-ratio: 1 / 1; display: grid; 
+            grid-template-columns: repeat(8, 1fr); grid-template-rows: repeat(8, 1fr);
+            border-radius: 4px; overflow: hidden; box-shadow: 0 5px 25px rgba(0,0,0,0.6); 
             touch-action: none;
         }
 
@@ -112,9 +121,34 @@
             <button class="t-btn" id="btn-10" onclick="updateTime(600, this)">10m</button>
         </div>
 
-        <button class="btn btn-primary" onclick="launch('online')"><i class="fas fa-globe"></i> یاری ئۆنلاین</button>
-        <button class="btn btn-primary" style="background:#3081d0" onclick="inviteFriend()"><i class="fas fa-user-plus"></i> یاری لەگەڵ هاوڕێ</button>
-        <button class="btn btn-secondary" onclick="launch('bot')"><i class="fas fa-robot"></i> دژی بۆت</button>
+        <button class="btn btn-primary" onclick="launch('online')"><i class="fas fa-globe"></i> یاری ئۆنلاین (ڕاندۆم)</button>
+        
+        <button class="btn btn-friend" onclick="toggleFriendMenu()"><i class="fas fa-user-plus"></i> یاری لەگەڵ هاوڕێ</button>
+        
+        <div id="friend-area">
+            <p style="margin-bottom:10px; color:#aaa; font-size:0.9rem;">یەکێک کۆد دروست دەکات، ئەوی تر دەینووسێت:</p>
+            <input type="number" id="room-code-input" class="main-input" placeholder="کۆدی ژوور (نموونە: 1234)" style="letter-spacing: 2px;">
+            <div style="display:flex; gap:10px;">
+                <button class="btn btn-primary" onclick="createRoom()">دروستکردن</button>
+                <button class="btn btn-friend" onclick="joinRoom()">چوونە ژوورەوە</button>
+            </div>
+            <div id="host-msg" style="display:none; margin-top:10px;">
+                کۆدەکە بدە بە هاوڕێکەت:
+                <div id="code-show" class="code-display"></div>
+                <div style="color:#f1c40f;">چاوەڕوانی هاوڕێکەت... <i class="fas fa-spinner fa-spin"></i></div>
+            </div>
+        </div>
+
+        <div style="margin-top: 20px; border-top: 1px solid #444; padding-top: 15px;">
+            <select id="bot-level" class="main-input" style="margin-bottom: 5px;">
+                <option value="1">ئاست: زۆر ئاسان (Easy)</option>
+                <option value="3">ئاست: ئاسان (Casual)</option>
+                <option value="6" selected>ئاست: مامناوەند (Medium)</option>
+                <option value="10">ئاست: سەخت (Hard)</option>
+                <option value="15">ئاست: مامۆستا (Grandmaster)</option>
+            </select>
+            <button class="btn btn-secondary" onclick="launch('bot')"><i class="fas fa-robot"></i> دژی بۆت</button>
+        </div>
         
         <div id="wait-msg" style="display:none; color:#f1c40f; margin-top:15px; font-weight:bold;">گەڕان بەدوای ڕکابەر...</div>
     </div>
@@ -150,12 +184,14 @@
     let tW = 60, tB = 60, timer = null;
     let gamesCount = parseInt(localStorage.getItem('chess_games') || '0');
     let myElo = parseInt(localStorage.getItem('chess_elo') || '400');
+    let botDepth = 6;
+
+    // Prefix to ensure unique IDs on PeerJS server
+    const APP_PREFIX = "KURD_CHESS_PRO_ROOM_";
 
     window.onload = () => {
         document.getElementById('nick').value = localStorage.getItem('chess_nick') || "";
         showElo();
-        const jId = new URLSearchParams(window.location.search).get('join');
-        if (jId) join(jId);
     };
 
     function showElo() {
@@ -172,15 +208,29 @@
         document.getElementById('clock-bottom').innerText = fmt(s);
     }
 
+    // پیشاندانی مینیوی هاوڕێ
+    function toggleFriendMenu() {
+        const menu = document.getElementById('friend-area');
+        menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+    }
+
     function launch(m) {
         const n = document.getElementById('nick').value;
-        if (!n) return alert("ناو بنووسە");
+        if (!n) return alert("تکایە سەرەتا ناوێک بنووسە");
         localStorage.setItem('chess_nick', n);
         mode = m;
+        
+        if(m === 'bot') {
+            botDepth = document.getElementById('bot-level').value;
+            init();
+            return;
+        }
+
         if(m==='online') {
             document.getElementById('wait-msg').style.display='block';
             peer = new Peer();
             peer.on('open', () => {
+                // Random lobby logic
                 let c = peer.connect("KURD_CHESS_LOBBY_FINAL");
                 c.on('open', () => { conn=c; myCol='b'; init(); conn.on('data', onMove); });
                 peer.on('error', () => {
@@ -188,13 +238,97 @@
                     peer.on('connection', x => { conn=x; myCol='w'; init(); conn.on('data', onMove); });
                 });
             });
-        } else init();
+        }
     }
+
+    // ----------------- FRIEND SYSTEM (CODE BASED) ----------------- //
+    
+    // کەسی یەکەم: کۆد دروست دەکات
+    function createRoom() {
+        const n = document.getElementById('nick').value;
+        if (!n) return alert("ناو بنووسە");
+        localStorage.setItem('chess_nick', n);
+
+        // کۆد لە ئینپوت وەردەگرێت یان خۆی دروست دەکات ئەگەر بەتاڵ بێت
+        let code = document.getElementById('room-code-input').value;
+        if(!code) code = Math.floor(1000 + Math.random() * 9000); // 4 digit random
+
+        const roomID = APP_PREFIX + code;
+
+        peer = new Peer(roomID);
+        
+        peer.on('open', (id) => {
+            document.getElementById('host-msg').style.display = 'block';
+            document.getElementById('code-show').innerText = code;
+            myCol = 'w';
+        });
+
+        peer.on('connection', (c) => {
+            conn = c;
+            conn.on('open', () => {
+                // ناردنی کاتی دیاریکراو بۆ کەسی دووەم
+                conn.send({type: 'config', time: tW}); 
+                init();
+            });
+            conn.on('data', (data) => {
+                if(data.type === 'move' || data.from) onMove(data);
+            });
+        });
+
+        peer.on('error', (err) => {
+            alert("ئەم کۆدە گیراوە! تکایە ژمارەیەکی تر بنووسە.");
+        });
+    }
+
+    // کەسی دووەم: کۆد دەنووسێت
+    function joinRoom() {
+        const n = document.getElementById('nick').value;
+        if (!n) return alert("ناو بنووسە");
+        localStorage.setItem('chess_nick', n);
+
+        const code = document.getElementById('room-code-input').value;
+        if(!code) return alert("تکایە کۆدی هاوڕێکەت بنووسە");
+
+        const roomID = APP_PREFIX + code;
+
+        peer = new Peer(); // ئایدی خۆمان گرنگ نییە
+        
+        peer.on('open', () => {
+            conn = peer.connect(roomID);
+            
+            conn.on('open', () => {
+                myCol = 'b';
+                init();
+            });
+
+            conn.on('data', (data) => {
+                if(data.type === 'config') {
+                     // کاتەکە ڕێکبخە وەک ئەوەی خانەخوێ (Host) دایگرتووە
+                     updateTime(data.time, document.getElementById('btn-1')); // Just visual update
+                     tW = tB = data.time;
+                } else {
+                    onMove(data);
+                }
+            });
+
+            // ئەگەر کۆدەکە هەڵە بێت دوای ٢ چرکە ئاگاداری دەدات
+            setTimeout(() => {
+                if(!conn.open) alert("کۆدەکە هەڵەیە یان هاوڕێکەت هێشتا ئۆنلاین نییە!");
+            }, 3000);
+        });
+    }
+
+    // ----------------------------------------------------------- //
 
     function init() {
         document.getElementById('welcome-screen').style.display='none';
         document.getElementById('game-screen').style.display='flex';
         document.getElementById('name-bottom').innerText = localStorage.getItem('chess_nick');
+        
+        if (mode === 'bot') {
+             document.getElementById('name-top').innerText = "Stockfish (Lv " + botDepth + ")";
+        }
+
         if(myCol==='b') document.getElementById('board').classList.add('flipped');
         draw();
         timer = setInterval(count, 1000);
@@ -216,10 +350,13 @@
         clearInterval(timer);
         let win = (myCol === 'w' && loser === 'b') || (myCol === 'b' && loser === 'w');
         alert(win ? "پیرۆزە! بردتەوە 🎉" : "بەداخەوە! دۆڕایت 💀");
-        gamesCount++;
-        localStorage.setItem('chess_games', gamesCount);
-        myElo += win ? 20 : -15;
-        localStorage.setItem('chess_elo', myElo);
+        
+        if(mode !== 'bot' && !document.getElementById('friend-area').style.display === 'block') {
+            gamesCount++;
+            localStorage.setItem('chess_games', gamesCount);
+            myElo += win ? 20 : -15;
+            localStorage.setItem('chess_elo', myElo);
+        }
         location.reload();
     }
 
@@ -227,11 +364,15 @@
 
     function clickSq(sq) {
         if(chess.game_over()) return;
-        if(chess.turn()===myCol) {
+        if(chess.turn()===myCol || (mode === 'bot' && chess.turn() === 'w')) {
             if(!sel) { if(chess.get(sq)?.color===chess.turn()) sel=sq; }
             else {
                 const m = chess.move({from:sel, to:sq, promotion:'q'});
-                if(m) { if(conn) conn.send(m); if(mode==='bot') setTimeout(bot, 600); premoves=[]; }
+                if(m) { 
+                    if(conn) conn.send(m); 
+                    if(mode==='bot') setTimeout(bot, 500); 
+                    premoves=[]; 
+                }
                 sel = (chess.get(sq)?.color===chess.turn()) ? sq : null;
             }
         } else {
@@ -242,9 +383,13 @@
     }
 
     async function bot() {
-        const r = await fetch(`https://stockfish.online/api/s/v2.php?fen=${chess.fen()}&depth=5`);
+        const r = await fetch(`https://stockfish.online/api/s/v2.php?fen=${chess.fen()}&depth=${botDepth}`);
         const d = await r.json();
-        if(d.bestmove) { const m=d.bestmove.split(' ')[1]; chess.move({from:m.slice(0,2), to:m.slice(2,4)}); draw(); }
+        if(d.bestmove) { 
+            const m=d.bestmove.split(' ')[1]; 
+            chess.move({from:m.slice(0,2), to:m.slice(2,4), promotion:'q'}); 
+            draw(); 
+        }
     }
 
     function draw() {
@@ -266,27 +411,6 @@
             b.appendChild(div);
         }
         if(chess.in_checkmate()) finish(chess.turn(), 'mate');
-        document.getElementById('status-text').innerText = chess.turn()==='w'?"نۆرەی سپی":"نۆرەی ڕەش";
-    }
-
-    function inviteFriend() {
-        const n = document.getElementById('nick').value;
-        if (!n) return alert("ناو بنووسە");
-        peer = new Peer();
-        peer.on('open', (id) => {
-            const link = window.location.origin + window.location.pathname + "?join=" + id;
-            prompt("لینک کۆپی بکە بۆ هاوڕێکەت:", link);
-            peer.on('connection', (c) => { conn = c; myCol = 'w'; conn.on('open', () => init()); conn.on('data', onMove); });
-        });
-    }
-
-    function join(id) {
-        peer = new Peer();
-        peer.on('open', () => {
-            conn = peer.connect(id);
-            conn.on('open', () => { myCol = 'b'; init(); });
-            conn.on('data', onMove);
-        });
     }
 
     function checkPre() {
